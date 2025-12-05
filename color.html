@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Color Block</title>
+<style>
+  body{font-family:Arial;text-align:center;margin-top:80px}
+  #patch{width:220px;height:220px;margin:0 auto;border-radius:6px}
+  #msg{margin-top:22px}
+</style>
+</head>
+<body>
+  <div id="patch"></div>
+  <div id="msg">Press ANY key to begin.</div>
+
+<script>
+const DURATION = 45000;
+const colors = [{name:'red', code:'#c62828'},{name:'green', code:'#2e7d32'},{name:'blue', code:'#1565c0'},{name:'yellow', code:'#f9a825'}];
+let started=false, accepting=false, idx=0, patchStart=0, results=[];
+
+function showPatch(){
+  const c = colors[idx];
+  document.getElementById('patch').style.background = c.code;
+  patchStart = performance.now();
+  accepting = true;
+  idx = (idx+1) % colors.length;
+}
+
+document.body.addEventListener('keydown', (e)=>{
+  if (!started){
+    started=true; document.getElementById('msg').textContent='';
+    window.blockEnd = Date.now() + DURATION;
+    showPatch(); return;
+  }
+  if (!accepting || Date.now() > window.blockEnd) return;
+  const rt = Math.round(performance.now() - patchStart);
+  const resp = (e.key || '').toLowerCase();
+  const currentColorName = getComputedStyle(document.getElementById('patch')).backgroundColor;
+  // For simplicity, map response to first letter
+  const correctLetter = (colors[(idx+colors.length-1)%colors.length].name[0]).toLowerCase();
+  const correct = resp === correctLetter;
+  results.push({ block:'color', color: colors[(idx+colors.length-1)%colors.length].name, response: resp, correct, rt });
+  accepting=false;
+  showPatch();
+});
+
+const ticker = setInterval(()=>{ if (started && Date.now()>=window.blockEnd){ clearInterval(ticker); finishBlock(); } }, 100);
+function finishBlock(){
+  document.getElementById('msg').textContent='Block finished — sending results...';
+  parent.postMessage({ type:'EMBED', field:'stroop_color_data', value: JSON.stringify(results) }, '*');
+  parent.postMessage('STROOP_DONE','*');
+}
+</script>
+</body>
+</html>

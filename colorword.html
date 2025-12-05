@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Color-Word Block</title>
+<style>
+  body{font-family:Arial;text-align:center;margin-top:100px}
+  #stim{font-size:64px;font-weight:700}
+  #msg{margin-top:18px}
+</style>
+</head>
+<body>
+  <div id="stim"></div>
+  <div id="msg">Press ANY key to begin.</div>
+
+<script>
+const DURATION = 45000;
+const colorNames = ['RED','GREEN','BLUE','YELLOW'];
+const colorCodes = { 'RED':'#c62828','GREEN':'#2e7d32','BLUE':'#1565c0','YELLOW':'#f9a825' };
+let started=false, accepting=false, idx=0, stimStart=0, results=[];
+
+// build incongruent pairs (word != color)
+const pairs = [];
+for (let w of colorNames){
+  for (let c of colorNames){
+    if (w !== c) pairs.push({word:w, color:c});
+  }
+}
+
+function showStim(){
+  const p = pairs[idx % pairs.length];
+  const el = document.getElementById('stim');
+  el.textContent = p.word;
+  el.style.color = colorCodes[p.color];
+  stimStart = performance.now();
+  accepting = true;
+  idx = (idx+1) % pairs.length;
+}
+
+document.body.addEventListener('keydown',(e)=>{
+  if (!started){
+    started=true; document.getElementById('msg').textContent='';
+    window.blockEnd = Date.now() + DURATION;
+    showStim(); return;
+  }
+  if (!accepting || Date.now() > window.blockEnd) return;
+  const rt = Math.round(performance.now() - stimStart);
+  const resp = (e.key || '').toLowerCase();
+  const currentPair = pairs[(idx+pairs.length-1)%pairs.length];
+  const correctLetter = currentPair.color[0].toLowerCase();
+  const correct = resp === correctLetter;
+  results.push({ block:'colorword', word: currentPair.word, ink: currentPair.color, response: resp, correct, rt });
+  accepting=false;
+  showStim();
+});
+
+const ticker = setInterval(()=>{ if (started && Date.now()>=window.blockEnd){ clearInterval(ticker); finishBlock(); } }, 100);
+function finishBlock(){
+  document.getElementById('msg').textContent='Block finished — sending results...';
+  parent.postMessage({ type:'EMBED', field:'stroop_colorword_data', value: JSON.stringify(results) }, '*');
+  parent.postMessage('STROOP_DONE','*');
+}
+</script>
+</body>
+</html>

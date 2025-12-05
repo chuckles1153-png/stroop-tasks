@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Word Block</title>
+<style>body{font-family:Arial;text-align:center;margin-top:100px}#stim{font-size:72px;font-weight:700}#msg{margin-top:20px}</style>
+</head>
+<body>
+  <div id="stim"></div>
+  <div id="msg">Press ANY key to begin.</div>
+
+<script>
+const DURATION = 45000; // 45 seconds
+const stimuli = ["RED","GREEN","BLUE","YELLOW","RED","GREEN","BLUE","YELLOW"];
+let started=false, accepting=false, idx=0, stimStart=0, results=[];
+
+function showStim(){
+  document.getElementById('stim').textContent = stimuli[idx];
+  stimStart = performance.now();
+  accepting = true;
+  idx = (idx+1) % stimuli.length;
+}
+
+document.body.addEventListener('keydown', (e)=>{
+  if (!started){
+    started = true;
+    document.getElementById('msg').textContent = '';
+    window.blockEnd = Date.now() + DURATION;
+    showStim();
+    return;
+  }
+  if (!accepting || Date.now() > window.blockEnd) return;
+  const rt = Math.round(performance.now() - stimStart);
+  const resp = (e.key || '').toLowerCase();
+  const correct = resp === document.getElementById('stim').textContent[0].toLowerCase();
+  results.push({ block: 'word', word: document.getElementById('stim').textContent, response: resp, correct, rt });
+  accepting = false;
+  showStim();
+});
+
+// end check
+const ticker = setInterval(()=>{
+  if (started && Date.now() >= window.blockEnd){
+    clearInterval(ticker);
+    finishBlock();
+  }
+}, 100);
+
+function finishBlock(){
+  document.getElementById('msg').textContent = 'Block finished — sending results...';
+  // send results to parent (Qualtrics)
+  parent.postMessage({ type: 'EMBED', field: 'stroop_word_data', value: JSON.stringify(results) }, '*');
+  // notify parent to advance
+  parent.postMessage('STROOP_DONE', '*');
+}
+</script>
+</body>
+</html>
